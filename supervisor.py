@@ -21,6 +21,7 @@ import can
 import logging
 
 from sd_card import check_sd_card_available
+from emmc_cleanup import cleanup_emmc
 from can_constants import (
     CS_STATUS_ID,
     CS_STATUS_LENGTH,
@@ -765,6 +766,8 @@ def main():
     logger.info("Camera system supervisor starting...")
 
     last_status_send = 0
+    last_cleanup = 0
+    EMMC_CLEANUP_INTERVAL = 30
     status_send_interval = 1.0
     last_power_cycle_time = 0
     POWER_CYCLE_RESEND_INTERVAL = 30  # resend if the failure persists, in case the message was missed
@@ -801,6 +804,11 @@ def main():
             # ================================================================
 
             handle_sd_card_hot_swap(config)
+
+            # Free eMMC space (SD-verified copies only) before it fills up and the system shuts down
+            if sd_state["currently_available"] and time.time() - last_cleanup >= EMMC_CLEANUP_INTERVAL:
+                last_cleanup = time.time()
+                cleanup_emmc(EMMC_STREAMS_DIR, os.path.join(sd_state["mount_point"], "streams"))
 
             # ================================================================
             # PROCESS MANAGEMENT
